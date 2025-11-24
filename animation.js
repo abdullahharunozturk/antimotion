@@ -1336,9 +1336,38 @@ function switchScene(direction) {
 }
 
 window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') switchScene('next');
-    if (e.key === 'ArrowLeft') switchScene('prev');
+    if (e.key === 'ArrowRight') {
+        switchScene('next');
+    } else if (e.key === 'ArrowLeft') {
+        switchScene('prev');
+    }
 });
+
+// Touch support for mobile
+let touchStartX = 0;
+let touchEndX = 0;
+
+window.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+}, false);
+
+window.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+}, false);
+
+function handleSwipe() {
+    if (touchEndX < touchStartX - 50) {
+        switchScene('next'); // Swipe Left -> Next
+    }
+    if (touchEndX > touchStartX + 50) {
+        switchScene('prev'); // Swipe Right -> Prev
+    }
+}
+
+// Initial UI Update
+modeNameElement.innerText = scenes[currentSceneIndex].name;
+document.querySelector('#ui p').innerHTML = "Use &larr; &rarr; keys or Swipe to switch modes";
 
 function resize() {
     width = window.innerWidth;

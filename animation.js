@@ -1303,6 +1303,345 @@ class RootsScene extends Scene {
     }
 }
 
+// 18. Aero Tunnel Scene (Premium Aviation)
+class AeroScene extends Scene {
+    constructor() {
+        super();
+        this.name = "Aero Dynamics";
+    }
+
+    init() {
+        this.particles = [];
+        const count = 2000; // High density
+        for (let i = 0; i < count; i++) {
+            this.particles.push(this.createParticle(true));
+        }
+    }
+
+    createParticle(randomX = false) {
+        return {
+            x: randomX ? Math.random() * width : Math.random() * -100,
+            y: Math.random() * height,
+            vx: Math.random() * 3 + 2,
+            vy: 0,
+            size: Math.random() * 1.5 + 0.5,
+            life: Math.random() * width,
+            maxLife: width + Math.random() * 100,
+            hue: 200 + Math.random() * 40 // Blue/Cyan variance
+        };
+    }
+
+    update() {
+        let mouseX = mouse.x || width / 2;
+        let mouseY = mouse.y || height / 2;
+        let radius = 40; // Obstacle radius
+
+        for (let p of this.particles) {
+            // Base flow
+            let speed = 4;
+
+            // Interaction: Mouse is a spherical obstacle
+            let dx = p.x - mouseX;
+            let dy = p.y - mouseY;
+            let distSq = dx * dx + dy * dy;
+            let dist = Math.sqrt(distSq);
+
+            if (dist < radius * 2) {
+                // Deflection force
+                let angle = Math.atan2(dy, dx);
+                let force = (radius * 2 - dist) / (radius * 2);
+
+                // Smooth deflection
+                p.vx += Math.cos(angle) * force * 2;
+                p.vy += Math.sin(angle) * force * 2;
+
+                // Color heat map (Pressure)
+                p.hue = 200 - force * 100; // Turns green/yellow/red under pressure
+            } else {
+                // Return to laminar
+                p.vy *= 0.95;
+                p.vx += (speed - p.vx) * 0.05;
+                p.hue += (220 - p.hue) * 0.05; // Return to blue
+            }
+
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // Reset
+            if (p.x > width + 50 || p.y < -50 || p.y > height + 50) {
+                Object.assign(p, this.createParticle(false));
+            }
+        }
+    }
+
+    draw() {
+        // Draw Obstacle (Ghostly)
+        let mouseX = mouse.x || width / 2;
+        let mouseY = mouse.y || height / 2;
+
+        let grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 40);
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(mouseX, mouseY, 40, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw Particles with trails (using global alpha for speed or just lines)
+        // For "Premium" look, we use lines to simulate motion blur
+        ctx.lineWidth = 1;
+        for (let p of this.particles) {
+            ctx.strokeStyle = `hsla(${p.hue}, 80%, 60%, 0.6)`;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x - p.vx * 4, p.y - p.vy * 4); // Trail based on velocity
+            ctx.stroke();
+        }
+    }
+}
+
+// 19. Cyber Circuit Scene (Premium Engineering)
+class CircuitScene extends Scene {
+    constructor() {
+        super();
+        this.name = "Cyber Circuit";
+        this.gridSize = 20;
+    }
+
+    init() {
+        this.paths = [];
+        this.cols = Math.ceil(width / this.gridSize);
+        this.rows = Math.ceil(height / this.gridSize);
+
+        // Create multiple "walkers"
+        const walkerCount = 100;
+        for (let i = 0; i < walkerCount; i++) {
+            this.paths.push(this.createWalker());
+        }
+
+        // Background grid cache could be here, but we'll draw it dynamically
+    }
+
+    createWalker(x, y) {
+        return {
+            x: x !== undefined ? x : Math.floor(Math.random() * this.cols) * this.gridSize,
+            y: y !== undefined ? y : Math.floor(Math.random() * this.rows) * this.gridSize,
+            dir: Math.floor(Math.random() * 4), // 0:N, 1:E, 2:S, 3:W
+            color: Math.random() > 0.5 ? '#0FF' : '#F0F', // Cyan or Magenta
+            speed: Math.random() > 0.8 ? 2 : 1, // Some fast packets
+            history: [],
+            maxLength: Math.random() * 50 + 20
+        };
+    }
+
+    update() {
+        // Mouse Spawn Effect
+        if (mouse.x != null) {
+            // Spawn new walkers at mouse position occasionally
+            if (Math.random() < 0.2) {
+                let mx = Math.floor(mouse.x / this.gridSize) * this.gridSize;
+                let my = Math.floor(mouse.y / this.gridSize) * this.gridSize;
+                this.paths.push(this.createWalker(mx, my));
+                // Limit total paths
+                if (this.paths.length > 200) this.paths.shift();
+            }
+        }
+
+        for (let p of this.paths) {
+            // Move in grid steps
+            // To make it smooth, we interpolate, but for "Circuit" look, instant turns are better.
+            // Let's act like "data packets" moving along lines.
+
+            if (Math.random() < 0.05) {
+                // Turn 90 degrees
+                if (Math.random() < 0.5) p.dir = (p.dir + 1) % 4;
+                else p.dir = (p.dir + 3) % 4;
+            }
+
+            let step = this.gridSize * 0.2 * p.speed; // Speed
+
+            if (p.dir === 0) p.y -= step;
+            if (p.dir === 1) p.x += step;
+            if (p.dir === 2) p.y += step;
+            if (p.dir === 3) p.x -= step;
+
+            // Mouse interaction: Attract to mouse
+            if (mouse.x != null) {
+                let dx = mouse.x - p.x;
+                let dy = mouse.y - p.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 150) {
+                    // Surge effect: Speed up and turn white
+                    p.color = '#FFF';
+                    p.speed = 3;
+
+                    // Bias direction towards mouse
+                    if (Math.random() < 0.1) {
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            p.dir = dx > 0 ? 1 : 3;
+                        } else {
+                            p.dir = dy > 0 ? 2 : 0;
+                        }
+                    }
+                } else {
+                    // Reset color eventually
+                    if (Math.random() < 0.01) p.color = Math.random() > 0.5 ? '#0FF' : '#F0F';
+                }
+            }
+
+            // Wrap
+            if (p.x < 0) p.x = width;
+            if (p.x > width) p.x = 0;
+            if (p.y < 0) p.y = height;
+            if (p.y > height) p.y = 0;
+
+            // History for trails
+            p.history.push({ x: p.x, y: p.y });
+            if (p.history.length > p.maxLength) p.history.shift();
+        }
+    }
+
+    draw() {
+        // Dark background
+        ctx.fillStyle = 'rgba(0, 10, 20, 0.2)'; // Trail fade
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw Grid points (subtle)
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.05)';
+        for (let x = 0; x < width; x += this.gridSize * 4) {
+            for (let y = 0; y < height; y += this.gridSize * 4) {
+                ctx.fillRect(x, y, 2, 2);
+            }
+        }
+
+        // Draw Walkers
+        ctx.lineWidth = 2;
+        for (let p of this.paths) {
+            ctx.strokeStyle = p.color;
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = p.color;
+
+            ctx.beginPath();
+            if (p.history.length > 0) {
+                ctx.moveTo(p.history[0].x, p.history[0].y);
+                for (let i = 1; i < p.history.length; i++) {
+                    ctx.lineTo(p.history[i].x, p.history[i].y);
+                }
+            }
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = '#FFF';
+            ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+
+            ctx.shadowBlur = 0;
+        }
+    }
+}
+
+// 20. Lorenz Attractor Scene (Premium Math)
+class AttractorScene extends Scene {
+    constructor() {
+        super();
+        this.name = "Chaos Attractor";
+        this.points = [];
+    }
+
+    init() {
+        this.points = [];
+        // Initialize a few points slightly offset
+        for (let i = 0; i < 3; i++) {
+            this.points.push({
+                x: 0.1,
+                y: 0,
+                z: 0,
+                color: `hsl(${i * 120}, 100%, 50%)`,
+                history: []
+            });
+        }
+
+        // Constants
+        this.sigma = 10;
+        this.rho = 28;
+        this.beta = 8 / 3;
+        this.dt = 0.01;
+    }
+
+    update() {
+        // Mouse interaction: Modify parameters or rotate
+        let rotationY = 0;
+        let rotationX = 0;
+
+        if (mouse.x != null) {
+            rotationY = (mouse.x - width / 2) * 0.002;
+            rotationX = (mouse.y - height / 2) * 0.002;
+
+            // Modify Rho with mouse Y for chaos control
+            // this.rho = 28 + (mouse.y / height) * 20;
+        }
+
+        for (let p of this.points) {
+            // Lorenz Equations
+            let dx = (this.sigma * (p.y - p.x)) * this.dt;
+            let dy = (p.x * (this.rho - p.z) - p.y) * this.dt;
+            let dz = (p.x * p.y - this.beta * p.z) * this.dt;
+
+            p.x += dx;
+            p.y += dy;
+            p.z += dz;
+
+            // Store history
+            p.history.push({ x: p.x, y: p.y, z: p.z });
+            if (p.history.length > 2000) p.history.shift();
+        }
+    }
+
+    draw() {
+        let centerX = width / 2;
+        let centerY = height / 2;
+        let scale = 15;
+
+        // Auto rotation
+        let time = Date.now() * 0.0005;
+        let rotY = time;
+        if (mouse.x != null) rotY += (mouse.x - width / 2) * 0.005;
+
+        ctx.lineWidth = 1.5;
+
+        for (let p of this.points) {
+            ctx.beginPath();
+            ctx.strokeStyle = p.color;
+
+            for (let i = 0; i < p.history.length; i++) {
+                let v = p.history[i];
+
+                // 3D Rotation
+                let x = v.x;
+                let y = v.y;
+                let z = v.z;
+
+                // Rotate Y
+                let x1 = x * Math.cos(rotY) - z * Math.sin(rotY);
+                let z1 = x * Math.sin(rotY) + z * Math.cos(rotY);
+
+                // Project
+                let px = centerX + x1 * scale;
+                let py = centerY + y * scale; // Lorenz is usually X-Z plane heavy, Y is up
+
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // Label
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = '14px monospace';
+        ctx.fillText("Lorenz Attractor (Chaos Theory)", 20, height - 20);
+    }
+}
+
 // Scene Manager
 const scenes = [
     new AntigravityScene(),
@@ -1322,6 +1661,9 @@ const scenes = [
     new QuantumScene(),
     new NeuralScene(),
     new RootsScene(),
+    new AeroScene(),
+    new CircuitScene(),
+    new AttractorScene(),
 ];
 let currentSceneIndex = 0;
 
